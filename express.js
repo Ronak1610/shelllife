@@ -82,14 +82,97 @@ app.post("/household", authMiddleware, async (req,res) =>
   
 })
 
-app.post("/household/:inviteCode", authMiddleware,async(req,res)=>
+app.post("/household/join", authMiddleware,async(req,res)=>
 {
   const user_id = req.user_id
   const inviteCode = req.body.inviteCode
+   if(!inviteCode)
+   {
+    res.status(403).json({ message : "missing fields"});
+    return
+   }
+  const houseFinder =   await households.findOneAndUpdate(
+      {
+        inviteCode : inviteCode                                                  
+      },
+    {  
+      $addToSet:{
+        members : user_id
+      }},
+      {
+        returnDocument: true
+      },
+  );
+ const houseId = houseFinder._id 
+ const userdId = await users.findOneAndUpdate(
+  {
+    _id: user_id
+  },
+  {
+    householdId : houseId
+  },
+  {
+    returnDocument : true
+  },
+ )
 
+  if(!houseFinder)
+  {
+    res.status(400).json({message : " something wrong with  code"});
+    return
+  }
+  res.status(200).json({ message : ` user with ${user_id} has been added`});
+  if(!userdId){
+  res.status(404).json({message : " no user with this id was found"})
+  return
+ }
+ res.status(200).json({message : `${user_id} has been updated with ${houseId}`})
+ console.log(houseId)
 })
+
 
 app.post("/items", authMiddleware, async (req,res) => {
   const user_id = req.user_id
+  const name = req.body.name
+  const category = req.body.category
+  const quantity = req.body.quantity
+  const expiryDate = req.body.expiryDate
+  const status = req.body.status
   
+  if(!name || !category || !quantity || !expiryDate || !status)
+  {
+    res.status(403).json({message : " missing Fild"});
+    return
+  }
+  const userFind = await users.findOne({
+    _id : user_id
+  });
+  const houseHoldId = userFind.householdId
+  console.log(houseHoldId);
+
+  const householdnamefind = await households.findOne({
+    _id : houseHoldId
+  });
+
+  const householdname = householdnamefind.name
+  console.log(householdname);
+  const itemsCreate = await items.create({
+    name:name,
+    householdId:houseHoldId,
+    householdName:householdname,
+    addedBy:user_id,
+    category:category,
+    quantity : quantity,
+    expiryDate:expiryDate,
+    status:status
+  });
+  res.status(201).json({message : " items have been created "})
+});
+
+app.get("/items",authMiddleware, async(req,res) => {
+
+})
+
+app.delete( "/items/:id",authMiddleware, async(req,res) => {
+
 })
