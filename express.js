@@ -170,9 +170,126 @@ app.post("/items", authMiddleware, async (req,res) => {
 });
 
 app.get("/items",authMiddleware, async(req,res) => {
+  const user_id = req.user_id
+  const status = req.query.status
+  const category = req.query.category
+
+  const usersFInder = await users.findById(user_id).populate("householdId")
+  if(!usersFInder)
+  {
+    res.status(404).json({ message : " no user found"});
+    return
+  }
+  const itemfinder = await items.find({
+    householdId:usersFInder.householdId,
+    status:status,
+    category:category
+  })
+  if(itemfinder.length ===0)
+  {
+    res.status(404).json({ message : " no result found"})
+  return
+}
+  res.status(200).json({items: itemfinder});
+  })
+  
+
+
+app.get("/household/me", authMiddleware, async (req,res)=> {
+  const user_id = req.user_id
+  const user = await users.findOne({
+    _id: user_id
+  }).populate("householdId");
+ 
+  if(!user.householdId)
+  {
+    return res.status(404).json({message : " user isnot part of household"})
+  }
+ 
+  res.json({ 
+    household : user.householdId
+  })
+  
+
+})
+app.get("/household/:id/members", authMiddleware, async (req,res) => {
+  const user_id = req.user_id
+  const name = req.params.name
+  const housemembers = await households.findOne(
+    { 
+      name:name
+    }
+  ).populate("members");
+  if(!housemembers)
+  {
+    res.status(404).json({ message : " not found"});
+    return
+  }
+  res.status(200).json({
+    members: housemembers.members
+  })
+  
+})
+
+app.delete("/items/:id",authMiddleware, async(req,res) => {
+  const user_id  = req.user_id
+  const id = req.params.id
+  const userfinder = await users.findOne({
+    _id:user_id
+  })
+  if (!userfinder) {
+  return res.status(404).json({
+    message: "User not found"
+  })
+}
+  const itemsfinder = await items.findOneAndDelete({
+   _id:id,
+    householdId: userfinder.householdId
+  })
+  if(!itemsfinder)
+  {
+      res.status(404).json({ message : " no items find"})
+      return
+  }
+  res.status(200).json({message : ` ${id} has been removed with items`});
+  
 
 })
 
-app.delete( "/items/:id",authMiddleware, async(req,res) => {
+
+app.patch("/items/:id/status" , authMiddleware, async (req,res) => {
+  const user_id  = req.user_id
+  const id = req.params.id
+  const status = req.body.status
+  const userfinder = await users.findOne({
+    _id:user_id
+  })
+  if (!userfinder) {
+  return res.status(404).json({
+    message: "User not found"
+  })
+}
+  const itemreplace = await items.findOneAndUpdate(
+    
+  {
+    _id: id,
+    householdId:userfinder.householdId
+  },
+  {
+   $set : {
+      status:status
+    }
+  },
+  {
+    returnDocument : true
+  },
+
+)
+  if(!itemreplace)
+  {
+    res.status(404).json({message : " no items found"});
+    return
+  }
+  res.status(200).json({message : ` ${status} has been repacled`});
 
 })
